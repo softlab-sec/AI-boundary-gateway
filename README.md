@@ -21,7 +21,7 @@ This project inspects the request itself instead: personal data, financial ident
 
 <img width="1266" height="744" alt="image" src="https://github.com/user-attachments/assets/c910869a-9f1e-4658-91bf-f9d626841b50" />
 
-<img width="1640" height="679" alt="image" src="https://github.com/user-attachments/assets/e32542da-f24c-4b2e-a6fd-07ceaedfcb31" />
+<img width="1558" height="800" alt="image" src="https://github.com/user-attachments/assets/7d045ff1-fe3e-4e5f-83e0-8be5e189a7dc" />
 
 
 ## Key Features 🔑
