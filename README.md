@@ -15,6 +15,14 @@ This project inspects the request itself instead: personal data, financial ident
 ---
 <img width="1692" height="766" alt="image" src="https://github.com/user-attachments/assets/457abc58-d227-4716-ae55-b0fead98aa41" />
 
+<p align="center"><img src="docs/architecture.png" alt="AI egress boundary architecture, edge and corp hosts either side of the gateway" width="850"></p>
+
+<img width="1684" height="731" alt="image" src="https://github.com/user-attachments/assets/26b20a13-55ba-4a36-bc31-45db2de16563" />
+
+<img width="1266" height="744" alt="image" src="https://github.com/user-attachments/assets/c910869a-9f1e-4658-91bf-f9d626841b50" />
+
+<img width="1640" height="679" alt="image" src="https://github.com/user-attachments/assets/e32542da-f24c-4b2e-a6fd-07ceaedfcb31" />
+
 
 ## Key Features 🔑
 
@@ -28,16 +36,8 @@ This project inspects the request itself instead: personal data, financial ident
 
 ---
 
+
 ## Architecture
-
-<p align="center"><img src="docs/architecture.png" alt="AI egress boundary architecture, edge and corp hosts either side of the gateway" width="850"></p>
-
-<img width="1684" height="731" alt="image" src="https://github.com/user-attachments/assets/26b20a13-55ba-4a36-bc31-45db2de16563" />
-
-<img width="1266" height="744" alt="image" src="https://github.com/user-attachments/assets/c910869a-9f1e-4658-91bf-f9d626841b50" />
-
-<img width="1640" height="679" alt="image" src="https://github.com/user-attachments/assets/e32542da-f24c-4b2e-a6fd-07ceaedfcb31" />
-
 
 ```
                     CLIENT (browser / scripted endpoint)
