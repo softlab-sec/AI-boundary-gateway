@@ -1,0 +1,54 @@
+<!doctype html><html><head><meta charset="utf-8"><title>Northgate CRM :: Internal</title>
+<style>
+ :root{--bg:#f5f7fa;--card:#fff;--line:#dfe4ec;--txt:#1a2230;--mut:#6b7688;--acc:#c8102e}
+ *{box-sizing:border-box} body{margin:0;font:14px/1.55 system-ui,Segoe UI,sans-serif;background:var(--bg);color:var(--txt)}
+ header{background:#12233d;color:#fff;padding:14px 24px;display:flex;align-items:center;gap:12px}
+ .cls{background:var(--acc);color:#fff;font-size:11px;padding:2px 8px;border-radius:4px}
+ .wrap{max-width:1180px;margin:20px auto;padding:0 20px}
+ table{width:100%;border-collapse:collapse;background:var(--card);border:1px solid var(--line);border-radius:8px;overflow:hidden}
+ th,td{padding:8px 10px;text-align:left;border-bottom:1px solid var(--line);font-size:12.5px}
+ th{background:#eef2f7;color:var(--mut);text-transform:uppercase;font-size:10.5px}
+ button{background:#12233d;color:#fff;border:0;border-radius:6px;padding:5px 10px;cursor:pointer;font-size:11.5px}
+ button.g{background:#1f7a4d}
+ .box{background:var(--card);border:1px solid var(--line);border-radius:8px;padding:14px;margin-top:18px}
+ pre{background:#0f1117;color:#c9d1d9;padding:12px;border-radius:8px;overflow:auto;font-size:11.5px}
+ #out{white-space:pre-wrap;background:#f0f4f9;border:1px solid var(--line);border-radius:6px;padding:12px;margin-top:8px;min-height:36px;font-size:12.5px}
+ .pg{margin-top:12px;color:var(--mut);font-size:12px}
+ .syn{background:#fff8e1;border:1px solid #f0d68a;border-radius:6px;padding:8px 12px;font-size:12px;margin-bottom:14px}
+</style></head><body>
+<header><b>NORTHGATE CRM</b><span class="cls">INTERNAL &middot; CONFIDENTIAL</span>
+<span style="margin-left:auto;font-size:12px;opacity:.85">t.balogun@northgate.example</span></header>
+<div class="wrap">
+<div class="syn">Synthetic dataset. {{total}} generated customer records, seed 42. All domains are .example and all card numbers are published test BINs.</div>
+<table>
+<tr><th>#</th><th>Name</th><th>Email</th><th>Phone</th><th>Account</th><th>Card</th><th>Tier</th><th>Actions</th></tr>
+{% for r in rows %}
+<tr><td>{{r.id}}</td><td>{{r.name}}</td><td>{{r.email}}</td><td>{{r.phone}}</td><td>{{r.account}}</td><td>{{r.card}}</td><td>{{r.tier}}</td>
+<td><button onclick="copyRec({{r.id}})">Copy</button>
+    <button class="g" onclick="ai({{r.id}})">Summarise with AI</button></td></tr>
+{% endfor %}
+</table>
+<div class="pg">page {{page}} of {{ (total // 25) + 1 }} &nbsp;
+ {% if page > 1 %}<a href="/?page={{page-1}}">prev</a>{% endif %}
+ <a href="/?page={{page+1}}">next</a></div>
+
+<div class="box"><b>Sanctioned AI response</b><div id="out">(nothing yet)</div></div>
+
+{% for a in assets %}
+<div class="box"><b>{{a.path}}</b><pre id="a{{a.id}}">{{a.content}}</pre>
+<button onclick="copyText(document.getElementById('a{{a.id}}').innerText)">Copy source</button></div>
+{% endfor %}
+</div>
+<script>
+async function copyRec(id){const j=await (await fetch('/api/customers/'+id+'/record')).json();copyText(j.text);}
+function copyText(t){navigator.clipboard.writeText(t).then(()=>alert('Copied:\n\n'+t));}
+async function ai(id){
+ const j=await (await fetch('/api/customers/'+id+'/record')).json();
+ document.getElementById('out').textContent='calling sanctioned endpoint...';
+ const s=await fetch('/ai/summarise',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({text:j.text})});
+ const k=await s.json();
+ document.getElementById('out').textContent =
+   (k.choices?.[0]?.message?.content || JSON.stringify(k,null,2)) +
+   '\n\n[boundary] ' + JSON.stringify(k._boundary||{});
+}
+</script></body></html>

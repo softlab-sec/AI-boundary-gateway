@@ -1,0 +1,61 @@
+version: "2026.07-lab2"
+mode: enforce          # switched from console at 10:59:58
+
+identity:
+  header: X-Corp-User
+  fallback: unattributed
+  ip_map:
+    "172.30.0.20": "t.balogun@northgate.example (workstation-01)"
+    "172.30.0.30": "crm-service (northgate-crm)"
+
+destinations:
+  sanctioned:
+    - api.openai.com
+  monitored:
+    - claude.ai
+    - api.anthropic.com
+    - chat.openai.com
+    - generativelanguage.googleapis.com
+  blocked:
+    - chatgpt.com
+    - gemini.google.com
+    - copilot.microsoft.com
+    - api.deepseek.com
+    - api.groq.com
+    - api.together.xyz
+    - api.perplexity.ai
+    - api.mistral.ai
+    - api.cohere.ai
+  unknown_destination_action: alert
+
+credentials:
+  unknown_key_action: alert
+  sanctioned_keys:
+    - id: KEY-CRM-001
+      prefix: "sk-corp-sanctioned-0001"
+      owner: crm-service
+      purpose: "Customer record summarisation"
+      scopes: ["chat.completions"]
+      allowed_data_classes: ["pii", "financial"]
+      max_body_bytes: 65536
+      expires: "2026-12-31"
+
+data_classes:
+  secret:      { action: block, reason: "Credential material may never transit to a model provider" }
+  source_code: { action: block, reason: "Proprietary source is out of scope for external inference" }
+  financial:   { action: mask,  reason: "PCI-relevant identifiers must be tokenised" }
+  pii:         { action: mask,  reason: "Personal data pseudonymised before any transfer" }
+  network:     { action: allow, reason: "Low sensitivity" }
+
+required_request_params:
+  default:
+    body:
+      store: false
+    headers:
+      X-No-Train: "true"
+      X-Data-Residency: "no-train;no-retain"
+    strip_headers: [cookie, x-user-email, referer]
+
+limits:
+  max_body_bytes: 262144
+  alert_on_bulk_records: 8

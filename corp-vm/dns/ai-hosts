@@ -1,0 +1,18 @@
+# STEERING TABLE  ::  managed by scripts/steer.sh
+# mode: direct
+# 10.10.10.10 = edge VM, no inspection
+# 172.30.0.10 = boundary gateway, full inspection
+192.168.253.11 api.openai.com
+192.168.253.11 chat.openai.com
+192.168.253.11 chatgpt.com
+192.168.253.11 api.anthropic.com
+192.168.253.11 claude.ai
+192.168.253.11 generativelanguage.googleapis.com
+192.168.253.11 gemini.google.com
+192.168.253.11 api.mistral.ai
+192.168.253.11 api.deepseek.com
+192.168.253.11 api.groq.com
+192.168.253.11 api.perplexity.ai
+192.168.253.11 api.cohere.ai
+192.168.253.11 api.together.xyz
+192.168.253.11 copilot.microsoft.com

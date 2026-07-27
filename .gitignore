@@ -1,0 +1,9 @@
+**/.env
+**/data/*.jsonl
+**/data/*.db
+corp-vm/gateway/gazetteer.json
+**/*.bak
+evidence-pack.md
+__pycache__/
+*.pyc
+.DS_Store

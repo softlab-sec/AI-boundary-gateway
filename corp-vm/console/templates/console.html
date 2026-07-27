@@ -1,0 +1,129 @@
+<!doctype html><html><head><meta charset="utf-8"><title>AI Governance Console</title>
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<style>
+ :root{--bg:#0b0e14;--panel:#141924;--line:#232a38;--txt:#e6ebf5;--mut:#8792a6;
+       --red:#ff6b6b;--amb:#ffc857;--grn:#3fd07f;--blu:#5aa9ff}
+ *{box-sizing:border-box}
+ body{margin:0;font:14px/1.55 ui-sans-serif,system-ui,Segoe UI,sans-serif;background:var(--bg);color:var(--txt)}
+ header{display:flex;align-items:center;gap:14px;padding:14px 24px;border-bottom:1px solid var(--line);background:#0e131c}
+ header h1{font-size:16px;margin:0}
+ .mode{padding:4px 12px;border-radius:99px;font-size:12px;font-weight:600}
+ .mode.enforce{background:#12351f;color:var(--grn);border:1px solid #1f6a3f}
+ .mode.monitor{background:#3a2c0e;color:var(--amb);border:1px solid #7a5c1a}
+ .btns{margin-left:auto;display:flex;gap:8px}
+ button{background:#1b2231;color:var(--txt);border:1px solid var(--line);border-radius:7px;padding:7px 13px;cursor:pointer;font-size:13px}
+ button:hover{border-color:#3b485f} button.p{background:#1f7a4d;border-color:#28966b}
+ .wrap{padding:20px 24px;max-width:1500px;margin:0 auto}
+ .kpis{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:12px;margin-bottom:14px}
+ .kpi{background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:14px 16px;cursor:pointer;transition:border-color .15s,background .15s}
+ .kpi:hover{border-color:#3b485f}
+ .kpi.on{border-color:var(--blu);background:#151d2c}
+ .kpi .n{font-size:26px;font-weight:650;line-height:1.1}
+ .kpi .l{color:var(--mut);font-size:11px;text-transform:uppercase;letter-spacing:.6px;margin-top:4px}
+ .fbar{display:flex;align-items:center;gap:10px;margin-bottom:14px;flex-wrap:wrap}
+ .fbar input{background:var(--panel);border:1px solid var(--line);border-radius:7px;padding:7px 11px;color:var(--txt);font:inherit;font-size:13px;min-width:230px}
+ .chip{background:#152033;border:1px solid #2a3a55;color:var(--blu);border-radius:99px;padding:4px 12px;font-size:12px}
+ .grid{display:grid;grid-template-columns:2.6fr 1fr;gap:14px}
+ .card{background:var(--panel);border:1px solid var(--line);border-radius:10px;overflow:hidden}
+ .card h2{font-size:12px;text-transform:uppercase;letter-spacing:.7px;color:var(--mut);margin:0;padding:12px 16px;border-bottom:1px solid var(--line)}
+ table{width:100%;border-collapse:collapse}
+ td,th{padding:9px 14px;font-size:12.5px;border-bottom:1px solid #1b2130;text-align:left;vertical-align:top}
+ th{color:var(--mut);font-weight:500;font-size:11px;text-transform:uppercase}
+ .pill{display:inline-block;padding:2px 9px;border-radius:99px;font-size:11px;font-weight:600}
+ .block{background:#3a1418;color:var(--red)} .mask{background:#3a2c0e;color:var(--amb)}
+ .allow{background:#12351f;color:var(--grn)} .alert{background:#12293f;color:var(--blu)}
+ .mono{font-family:ui-monospace,Menlo,monospace;font-size:12px}
+ .why{color:var(--mut);font-size:11.5px;margin-top:3px}
+ .bar{height:6px;background:#1b2231;border-radius:4px;overflow:hidden;margin-top:5px}
+ .bar i{display:block;height:100%;background:var(--blu)}
+ .clk{cursor:pointer} .clk:hover{color:var(--blu)}
+ .empty{padding:22px;color:var(--mut);font-size:13px}
+</style></head><body>
+<header>
+ <h1>AI EGRESS BOUNDARY :: GOVERNANCE CONSOLE</h1>
+ <span id="mode" class="mode monitor">loading</span>
+ <span class="mono" style="color:#8792a6" id="ver"></span>
+ <div class="btns">
+  <button onclick="setMode('monitor')">Monitor only</button>
+  <button class="p" onclick="setMode('enforce')">Enforce</button>
+  <button onclick="location='/api/evidence'">Evidence pack</button>
+  <button onclick="fetch('/api/reset',{method:'POST'}).then(tick)">Clear</button>
+ </div>
+</header>
+<div class="wrap">
+ <div class="kpis" id="kpis"></div>
+ <div class="fbar">
+  <input id="q" placeholder="search identity, destination, reason..." oninput="tick()">
+  <span id="chip" class="chip" style="display:none"></span>
+  <button onclick="clearAll()">Clear filters</button>
+ </div>
+ <div class="grid">
+  <div class="card"><h2 id="tblhdr">Live egress decisions</h2><table id="ev"></table><div id="empty" class="empty" style="display:none">No events match this filter.</div></div>
+  <div>
+   <div class="card" style="margin-bottom:14px"><h2>Data classes intercepted</h2><div id="cls" style="padding:14px 16px"></div></div>
+   <div class="card"><h2>Top destinations</h2><div id="dst" style="padding:14px 16px"></div></div>
+  </div>
+ </div>
+</div>
+<script>
+let F='all', HOST='';
+const K=[['total','inspected','all'],['blocked','blocked','block'],['masked','entities masked','masked'],
+         ['shadow_credentials','shadow keys','shadow'],['allowed','allowed','allow'],['alerted','alerted','alert']];
+const HDR='<tr><th>Time</th><th>Identity</th><th>Destination</th><th>Credential</th><th>Findings</th><th>Decision</th></tr>';
+function setF(f){F=(F===f&&f!=='all')?'all':f;tick();}
+function setHost(h){HOST=(HOST===h)?'':h;tick();}
+function clearAll(){F='all';HOST='';document.getElementById('q').value='';tick();}
+function match(i){
+ if(F==='block'&&i.decision!=='block')return false;
+ if(F==='allow'&&i.decision!=='allow')return false;
+ if(F==='alert'&&i.decision!=='alert')return false;
+ if(F==='masked'&&!(i.masked_entities>0))return false;
+ if(F==='shadow'&&(i.credential||{}).status!=='shadow')return false;
+ if(HOST&&i.host!==HOST)return false;
+ const q=document.getElementById('q').value.trim().toLowerCase();
+ if(q){const blob=[i.user,i.host,i.path,(i.reasons||[]).join(' '),
+   (i.findings||[]).map(x=>x.label).join(' ')].join(' ').toLowerCase();
+   if(!blob.includes(q))return false;}
+ return true;
+}
+async function tick(){
+ const s=await (await fetch('/api/summary')).json();
+ document.getElementById('mode').className='mode '+(s.mode==='enforce'?'enforce':'monitor');
+ document.getElementById('mode').textContent=(s.mode||'?').toUpperCase();
+ document.getElementById('ver').textContent='policy '+(s.policy_version||'');
+ document.getElementById('kpis').innerHTML=K.map(([k,l,f])=>
+   `<div class="kpi ${F===f?'on':''}" onclick="setF('${f}')"><div class=n>${s[k]??0}</div><div class=l>${l}</div></div>`).join('');
+ const mx=Math.max(1,...Object.values(s.by_data_class||{}));
+ document.getElementById('cls').innerHTML=Object.entries(s.by_data_class||{})
+   .sort((a,b)=>b[1]-a[1]).map(([k,v])=>
+   `<div style="margin-bottom:9px"><div style="display:flex;justify-content:space-between"><span>${k}</span><b>${v}</b></div>
+    <div class=bar><i style="width:${v/mx*100}%"></i></div></div>`).join('')||'<span style="color:#8792a6">none yet</span>';
+ document.getElementById('dst').innerHTML=(s.top_destinations||[]).map(([h,n])=>
+   `<div class=clk onclick="setHost('${h}')" style="display:flex;justify-content:space-between;margin-bottom:6px;${HOST===h?'color:#5aa9ff':''}"><span class=mono>${h}</span><b>${n}</b></div>`).join('')||'<span style="color:#8792a6">none yet</span>';
+
+ const e=await (await fetch('/api/events?limit=300')).json();
+ const rows=e.items.filter(match);
+ const lbl=K.find(x=>x[2]===F);
+ const parts=[];
+ if(F!=='all')parts.push(lbl?lbl[1]:F);
+ if(HOST)parts.push(HOST);
+ const chip=document.getElementById('chip');
+ if(parts.length){chip.style.display='';chip.textContent='filtered: '+parts.join(' · ');}else chip.style.display='none';
+ document.getElementById('tblhdr').textContent=`Live egress decisions (${rows.length} of ${e.items.length})`;
+ document.getElementById('empty').style.display=rows.length?'none':'';
+ document.getElementById('ev').innerHTML=rows.length?HDR+rows.map(i=>{
+   const f=(i.findings||[]).reduce((a,x)=>{a[x.label]=(a[x.label]||0)+1;return a},{});
+   const ft=Object.entries(f).map(([k,v])=>`${k}&times;${v}`).join(', ')||'&mdash;';
+   const cr=i.credential||{};
+   const crd=cr.status==='shadow'?`<span class="pill block">SHADOW</span> <span class=mono>${cr.fingerprint||''}</span>`
+        :cr.status==='sanctioned'?`<span class="pill allow">${cr.id}</span>`:'<span style="color:#8792a6">none</span>';
+   return `<tr><td class=mono>${(i.iso||'').slice(11,19)}</td><td>${i.user||''}</td>
+    <td class="mono clk" onclick="setHost('${i.host}')">${i.host}<div class=why>${i.destination_class} &middot; ${i.path}</div></td>
+    <td>${crd}</td>
+    <td>${ft}${i.masked_entities?`<div class=why>${i.masked_entities} tokenised</div>`:''}</td>
+    <td><span class="pill ${i.decision}">${(i.decision||'').toUpperCase()}</span>
+        <div class=why>${(i.reasons||[]).slice(0,2).join('<br>')}</div></td></tr>`}).join(''):'';
+}
+async function setMode(m){await fetch('/api/mode/'+m,{method:'POST'});tick();}
+tick();setInterval(tick,2000);
+</script></body></html>

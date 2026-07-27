@@ -1,0 +1,10 @@
+. {
+    hosts /etc/coredns/ai-hosts {
+        reload 2s
+        fallthrough
+    }
+    forward . 8.8.8.8 1.1.1.1
+    log
+    errors
+    cache 5
+}

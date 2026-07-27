@@ -1,0 +1,16 @@
+{
+  "title": "AI Egress Boundary", "uid": "ai-egress", "timezone": "browser",
+  "refresh": "5s", "time": { "from": "now-1h", "to": "now" }, "schemaVersion": 39,
+  "panels": [
+    { "type": "stat", "title": "Blocked at boundary", "gridPos": {"h":5,"w":6,"x":0,"y":0},
+      "targets": [{"expr":"sum(count_over_time({job=\"boundary\", decision=\"block\"}[$__range]))","queryType":"instant"}] },
+    { "type": "stat", "title": "Requests inspected", "gridPos": {"h":5,"w":6,"x":6,"y":0},
+      "targets": [{"expr":"sum(count_over_time({job=\"boundary\"}[$__range]))","queryType":"instant"}] },
+    { "type": "timeseries", "title": "Decisions over time", "gridPos": {"h":9,"w":12,"x":12,"y":0},
+      "targets": [{"expr":"sum by (decision) (count_over_time({job=\"boundary\"}[1m]))"}] },
+    { "type": "logs", "title": "Boundary audit stream", "gridPos": {"h":11,"w":24,"x":0,"y":9},
+      "targets": [{"expr":"{job=\"boundary\"}"}] },
+    { "type": "logs", "title": "Suricata shadow AI alerts", "gridPos": {"h":10,"w":24,"x":0,"y":20},
+      "targets": [{"expr":"{job=\"suricata\"} |= \"SHADOW-AI\""}] }
+  ]
+}

@@ -1,0 +1,168 @@
+name: corp
+
+networks:
+  corp-lan:
+    driver: bridge
+    ipam:
+      config:
+        - subnet: 172.30.0.0/24
+
+volumes:
+  crm-data:
+  boundary-state:
+  suricata-logs:
+  loki-data:
+  grafana-data:
+  boundary-logs:
+
+services:
+  corp-dns:
+    image: coredns/coredns:1.11.3
+    container_name: corp-dns
+    command: ["-conf", "/etc/coredns/Corefile"]
+    volumes:
+      - ./dns/Corefile:/etc/coredns/Corefile:ro
+      - ./dns/ai-hosts:/etc/coredns/ai-hosts:ro
+    networks:
+      corp-lan: { ipv4_address: 172.30.0.53 }
+    restart: unless-stopped
+
+  seeder:
+    build: ./seeder
+    container_name: corp-seeder
+    environment:
+      RECORDS: "250"
+      SEED: "42"
+    volumes:
+      - crm-data:/data
+    networks: [corp-lan]
+    restart: "no"
+
+  crm:
+    build: ./crm
+    container_name: corp-crm
+    environment:
+      LLM_BASE: http://api.openai.com
+      LLM_KEY: sk-corp-sanctioned-0001-a94f2c
+    volumes:
+      - crm-data:/data
+    dns: ["172.30.0.53"]
+    ports: ["8000:8000"]
+    networks:
+      corp-lan: { ipv4_address: 172.30.0.30 }
+    depends_on:
+      seeder: { condition: service_completed_successfully }
+    restart: unless-stopped
+
+  boundary-gateway:
+    build: ./gateway
+    container_name: corp-boundary
+    ports: ["80:80"]
+    command: >
+      mitmdump
+        --mode reverse:http://${EDGE_IP}:80
+        --listen-host 0.0.0.0
+        --listen-port 80
+        --set keep_host_header=true
+        --set stream_large_bodies=10m
+        --set termlog_verbosity=info
+        --set connection_strategy=lazy
+        -s /addons/boundary.py
+    environment:
+      PYTHONPATH: /addons
+      POLICY_FILE: /etc/boundary/policy.yaml
+      GAZETTEER_FILE: /etc/boundary/gazetteer.json
+      AUDIT_FILE: /var/log/boundary/audit.jsonl
+      VAULT_DB: /var/lib/boundary/vault.db
+      VAULT_SECRET: lab-only-not-a-real-secret
+      PRESIDIO_URL: ""
+    volumes:
+      - ./gateway:/etc/boundary
+      - boundary-logs:/var/log/boundary
+      - boundary-state:/var/lib/boundary
+    dns: ["172.30.0.53"]
+    networks:
+      corp-lan: { ipv4_address: 172.30.0.10 }
+    restart: unless-stopped
+
+  console:
+    build: ./console
+    container_name: corp-console
+    environment:
+      AUDIT_FILE: /var/log/boundary/audit.jsonl
+      POLICY_FILE: /etc/boundary/policy.yaml
+      GAZETTEER_FILE: /etc/boundary/gazetteer.json
+      CRM_URL: http://172.30.0.30:8000
+    volumes:
+      - ./gateway:/etc/boundary
+      - boundary-logs:/var/log/boundary
+    ports: ["8090:8090"]
+    dns: ["172.30.0.53"]
+    networks:
+      corp-lan: { ipv4_address: 172.30.0.40 }
+    depends_on: [crm]
+    restart: unless-stopped
+
+  workstation:
+    build: ./workstation
+    container_name: corp-workstation
+    environment:
+      CRM_URL: http://172.30.0.30:8000
+      CORP_USER: t.balogun@northgate.example
+    dns: ["172.30.0.53"]
+    networks:
+      corp-lan: { ipv4_address: 172.30.0.20 }
+    restart: unless-stopped
+
+
+  suricata:
+    image: jasonish/suricata:latest
+    container_name: corp-suricata
+    profiles: ["ids"]
+    network_mode: host
+    cap_add: [NET_ADMIN, NET_RAW, SYS_NICE]
+    command: ["-i", "${IFACE:-eth0}", "-S", "/etc/suricata/rules/shadow-ai.rules"]
+    volumes:
+      - ./suricata/rules:/etc/suricata/rules:ro
+      - suricata-logs:/var/log/suricata
+    restart: unless-stopped
+
+  loki:
+    image: grafana/loki:3.3.2
+    container_name: corp-loki
+    profiles: ["soc"]
+    command: ["-config.file=/etc/loki/loki.yml"]
+    volumes:
+      - ./observability/loki/loki.yml:/etc/loki/loki.yml:ro
+      - loki-data:/loki
+    networks: [corp-lan]
+    restart: unless-stopped
+
+  promtail:
+    image: grafana/promtail:3.3.2
+    container_name: corp-promtail
+    profiles: ["soc"]
+    command: ["-config.file=/etc/promtail/promtail.yml"]
+    volumes:
+      - ./observability/promtail/promtail.yml:/etc/promtail/promtail.yml:ro
+      - boundary-logs:/var/log/boundary
+      - suricata-logs:/var/log/suricata
+    networks: [corp-lan]
+    depends_on: [loki]
+    restart: unless-stopped
+
+  grafana:
+    image: grafana/grafana:11.4.0
+    container_name: corp-grafana
+    profiles: ["soc"]
+    environment:
+      GF_SECURITY_ADMIN_PASSWORD: boundary
+      GF_AUTH_ANONYMOUS_ENABLED: "true"
+      GF_AUTH_ANONYMOUS_ORG_ROLE: Viewer
+    volumes:
+      - ./observability/grafana/provisioning:/etc/grafana/provisioning:ro
+      - grafana-data:/var/lib/grafana
+    ports: ["3000:3000"]
+    networks: [corp-lan]
+    depends_on: [loki]
+    restart: unless-stopped
