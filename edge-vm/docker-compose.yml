@@ -1,0 +1,49 @@
+name: edge
+
+networks:
+  edge-net: { driver: bridge }
+
+volumes:
+  ollama-models:
+
+services:
+  edge-nginx:
+    image: nginx:1.27-alpine
+    container_name: edge-nginx
+    volumes:
+      - ./nginx/default.conf:/etc/nginx/conf.d/default.conf:ro
+    ports:
+      - "80:80"
+    depends_on: [mock-llm, shadow-ui]
+    networks: [edge-net]
+    restart: unless-stopped
+
+  mock-llm:
+    build: ./mock-llm
+    container_name: edge-mock-llm
+    environment:
+      USE_OLLAMA: "0"
+      OLLAMA_URL: http://ollama:11434
+      OLLAMA_MODEL: qwen2.5:1.5b
+    volumes:
+      - ./data:/data
+    ports:
+      - "8080:8080"
+    networks: [edge-net]
+    restart: unless-stopped
+
+  shadow-ui:
+    image: nginx:1.27-alpine
+    container_name: edge-shadow-ui
+    volumes:
+      - ./shadow-ui:/usr/share/nginx/html:ro
+    networks: [edge-net]
+    restart: unless-stopped
+
+  ollama:
+    image: ollama/ollama:latest
+    container_name: edge-ollama
+    profiles: ["llm"]
+    volumes: [ollama-models:/root/.ollama]
+    networks: [edge-net]
+    restart: unless-stopped

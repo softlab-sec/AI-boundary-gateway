@@ -1,0 +1,59 @@
+<!doctype html><html><head><meta charset="utf-8">
+<title>OpenChat AI :: free assistant</title>
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<style>
+ :root{--bg:#0f1117;--panel:#171a23;--line:#262b36;--txt:#e6e9ef;--mut:#8b93a5;--acc:#10a37f}
+ *{box-sizing:border-box} body{margin:0;font:15px/1.6 system-ui,-apple-system,Segoe UI,sans-serif;background:var(--bg);color:var(--txt)}
+ header{padding:14px 22px;border-bottom:1px solid var(--line);display:flex;align-items:center;gap:10px}
+ .logo{width:26px;height:26px;border-radius:6px;background:var(--acc)}
+ .wrap{max-width:820px;margin:0 auto;padding:28px 20px 150px}
+ .msg{padding:14px 16px;border-radius:10px;margin-bottom:12px;white-space:pre-wrap}
+ .me{background:#1d2230;border:1px solid var(--line)}
+ .ai{background:var(--panel);border:1px solid var(--line)}
+ .blocked{background:#2b1215;border:1px solid #7a2a30;border-left:4px solid #d64550;color:#ffb3b3;white-space:normal}
+ .blocked b{color:#ff6b6b;font-size:16px}
+ .blocked ul{margin:10px 0 0 18px;padding:0}
+ .blocked li{margin:4px 0;color:#ffd0d0}
+ .blocked small{color:#c98d8d;display:block;margin-top:10px}
+ .bar{position:fixed;left:0;right:0;bottom:0;background:linear-gradient(transparent,var(--bg) 30%);padding:18px}
+ .bar .inner{max-width:820px;margin:0 auto;display:flex;gap:10px}
+ textarea{flex:1;background:var(--panel);color:var(--txt);border:1px solid var(--line);border-radius:10px;padding:12px;resize:none;height:90px;font:inherit}
+ button{background:var(--acc);color:#04160f;border:0;border-radius:10px;padding:0 24px;font-weight:600;cursor:pointer;font-size:15px}
+ .note{color:var(--mut);font-size:12px;text-align:center;margin-top:8px}
+</style></head><body>
+<header><div class="logo"></div><strong>OpenChat AI</strong>
+<span style="color:#8b93a5;font-size:13px">free &middot; no login &middot; unlimited</span></header>
+<div class="wrap" id="thread">
+ <div class="msg ai">Hi. Paste anything and I will summarise, rewrite or explain it.</div>
+</div>
+<div class="bar"><div class="inner">
+ <textarea id="q" placeholder="Paste text here..."></textarea>
+ <button onclick="send()">Send</button>
+</div><div class="note">Conversations may be reviewed and used to improve our models.</div></div>
+<script>
+async function send(){
+ const q=document.getElementById('q'), t=document.getElementById('thread');
+ const text=q.value.trim(); if(!text) return; q.value='';
+ t.insertAdjacentHTML('beforeend','<div class="msg me">'+text.replace(/</g,'&lt;')+'</div>');
+ window.scrollTo(0,document.body.scrollHeight);
+ try{
+  const r=await fetch('/v1/chat/completions',{method:'POST',
+    headers:{'Content-Type':'application/json','Authorization':'Bearer sk-consumer-free-tier-9f2b71c4'},
+    body:JSON.stringify({model:'gpt-4o-mini',messages:[{role:'user',content:text}]})});
+  const j=await r.json();
+  if(r.status===451){
+   const e=j.error||{};
+   t.insertAdjacentHTML('beforeend',
+    '<div class="msg blocked"><b>BLOCKED BY CORPORATE POLICY</b><br>'+
+    (e.message||'')+'<ul>'+(e.reasons||[]).map(x=>'<li>'+x+'</li>').join('')+'</ul>'+
+    '<small>audit id '+(e.audit_id||'')+' &middot; contact '+(e.policy_contact||'')+'</small></div>');
+  } else {
+   const out=(j.choices&&j.choices[0]&&j.choices[0].message&&j.choices[0].message.content)||'(no reply)';
+   t.insertAdjacentHTML('beforeend','<div class="msg ai">'+out.replace(/</g,'&lt;')+'</div>');
+  }
+ }catch(err){
+  t.insertAdjacentHTML('beforeend','<div class="msg blocked"><b>Request failed</b><br>'+err.message+'</div>');
+ }
+ window.scrollTo(0,document.body.scrollHeight);
+}
+</script></body></html>
